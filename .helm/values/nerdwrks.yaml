@@ -1,0 +1,25 @@
+namespace: nerdwrks
+environment: prod
+deploymentNameWeb: nerdwrks-web
+spec:
+  replicas: 3
+web:
+  service:
+    type: ClusterIP
+    port: 443
+
+  containerWebNginx: nerdwrks-nginx
+  nginx: 
+    image:
+      repository: registry.nerdwrks.net/nerdwrks/nerdwrks-nginx
+      tag: v1.0.0
+      pullPolicy: Always
+  
+  containerWebPHP: nerdwrks-php
+  php: 
+    image:
+      repository: registry.nerdwrks.net/nerdwrks/nerdwrks-php
+      tag: v1.0.0
+      pullPolicy: Always
+
+imagePullSecret: registry-image-pull

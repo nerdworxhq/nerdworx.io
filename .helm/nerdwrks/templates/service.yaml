@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nerdwrks.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ include "nerdwrks.fullname" . }}
+  annotations: {}
+spec:
+  type: {{ .Values.web.service.type }}
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  ports:
+  - name: https
+    protocol: TCP
+    port: 443
+    targetPort: 8443
+  selector:
+    app: {{ include "nerdwrks.fullname" . }}
+    component: "web"
+

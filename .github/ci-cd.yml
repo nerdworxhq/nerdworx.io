@@ -1,0 +1,133 @@
+name: Nerdwrks CI/CD Pipeline
+
+permissions:
+  contents: write
+  pull-requests: read
+
+on:
+  push:
+    branches:
+      - develop
+      - 'Release_*'
+  # REMOVED: workflow_run section that was causing the self-triggering issue
+
+env:
+  REGISTRY_USERNAME: ${{ vars.REGISTRY_USERNAME }}
+  REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+  REGISTRY_URL: ${{ vars.REGISTRY_URL }}
+  REGISTRY_PROJECT: ${{ vars.REGISTRY_PROJECT }}
+  HELM_BITBUCKET_SAVE_PATH: ${{ secrets.HELM_BITBUCKET_SAVE_PATH }}
+
+jobs:
+  # Tagging jobs for develop branch
+  tag-develop-nashville:
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/develop') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'develop')
+    runs-on: ubuntu-latest
+    outputs:
+      tag_created: ${{ steps.create_tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Tag on Merge for Nashville
+        id: create_tag
+        run: |
+          export GITHUB_TAG_NASHVILLE=$(date "+%Y.%m.%d-develop.%H%M+nashville")
+          git config --global user.email "jordan.holton@cashtn.com"
+          git config --global user.name "Jordan Holton"
+          git tag $GITHUB_TAG_NASHVILLE
+          git push origin $GITHUB_TAG_NASHVILLE
+          echo "tag=$GITHUB_TAG_NASHVILLE" >> $GITHUB_OUTPUT
+
+  # Tagging jobs for release branches
+  tag-release-nashville:
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/Release_')) ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && startsWith(github.event.pull_request.base.ref, 'Release_'))
+    runs-on: ubuntu-latest
+    outputs:
+      tag_created: ${{ steps.create_tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Tag on Release Branch Creation to Nashville
+        id: create_tag
+        run: |
+          export GITHUB_TAG_RELEASE_NASHVILLE=$(date "+%Y.%m.%d-release.%H%M+nashville")
+          git config --global user.email "jordan.holton@cashtn.com"
+          git config --global user.name "Jordan Holton"
+          git tag $GITHUB_TAG_RELEASE_NASHVILLE
+          git push origin $GITHUB_TAG_RELEASE_NASHVILLE
+          echo "tag=$GITHUB_TAG_RELEASE_NASHVILLE" >> $GITHUB_OUTPUT
+
+  # Build and deploy for Nashville develop tags
+  build-and-deploy-nashville:
+    needs: [tag-develop-nashville]
+    if: needs.tag-develop-nashville.outputs.tag_created != ''
+    runs-on: ubuntu-latest
+    environment: Development
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Use created tag
+        id: extract_tag
+        run: |
+          echo "tag=${{ needs.tag-develop-nashville.outputs.tag_created }}" >> $GITHUB_OUTPUT
+
+      - name: Docker Build and Push
+        run: |
+          # Install dependencies and build
+          npm install
+          npm run build
+          
+          # Docker login and build
+          echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USERNAME" --password-stdin "$REGISTRY_URL"
+          
+          docker build . -f .docker/nginx/k8s.dockerfile -t "$REGISTRY_URL/$REGISTRY_PROJECT/nerdwrks-nginx:v1.0.0"
+          docker build . -f .docker/php/k8s.dockerfile -t "$REGISTRY_URL/$REGISTRY_PROJECT/nerdwrks-php:v1.0.0"
+          
+          docker push "$REGISTRY_URL/$REGISTRY_PROJECT/nerdwrks-nginx:v1.0.0"
+          docker push "$REGISTRY_URL/$REGISTRY_PROJECT/nerdwrks-php:v1.0.0"
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.16.2'
+
+      - name: Helm Package and Push
+        run: |
+          # Package Helm chart
+          echo "Packaging the Helm chart..."
+          helm package --version "${{ steps.extract_tag.outputs.tag }}" --app-version "${{ steps.extract_tag.outputs.tag }}" .helm/nerdwrks
+          
+          # Login to Harbor
+          echo "Logging into Harbor..."
+          helm registry login -u "$REGISTRY_USERNAME" -p "$REGISTRY_PASSWORD" "$REGISTRY_URL"
+          
+          # Push Helm chart
+          echo "Pushing packaged Helm chart to Harbor..."
+          export HELM_EXPERIMENTAL_OCI=1
+          helm push "nerdwrks-${{ steps.extract_tag.outputs.tag }}.tgz" "oci://$REGISTRY_URL/helm-charts"
+
+      - name: Helm Install
+        run: |
+          echo "Deploying with tag: ${{ steps.extract_tag.outputs.tag }}"
+          # Add your specific helm install/upgrade commands here

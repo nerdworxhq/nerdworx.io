@@ -1,0 +1,129 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .Values.deploymentNameWeb }}"
+  namespace: "{{ .Values.namespace }}"
+  labels:
+    app: nerdwrks
+    component: "web"
+    chart: nerdwrks
+spec:
+  replicas: "{{ .Values.spec.replicas | default 2 }}"
+  selector:
+    matchLabels:
+      app: nerdwrks
+      component: "web"
+      chart: nerdwrks
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: "25%"
+      maxUnavailable: "25%"
+  minReadySeconds: 30
+  progressDeadlineSeconds: 60
+  template:
+    metadata:
+      labels:
+        app: nerdwrks
+        component: "web"
+        chart: nerdwrks
+    spec:
+      serviceAccountName: nerdwrks
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - nerdwrks
+              topologyKey: "kubernetes.io/hostname"
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: "{{ .Values.web.containerWebNginx }}"
+        image: "{{ .Values.web.nginx.image.repository }}:{{ .Values.web.nginx.image.tag }}"
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: nerdwrks-env-configmap
+          mountPath: /var/www/html/.env
+          subPath: nerdwrks.env
+        - name: nginx
+          mountPath: /nginx
+        env:
+        - name: APP_CONFIG_FILE
+          value: /var/www/html/.env
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+        securityContext:
+          runAsUser: 101
+          runAsGroup: 101
+          readOnlyRootFilesystem: false
+        ports:
+        - name: https
+          containerPort: 8443
+          protocol: TCP
+      - name: nerdwrks-php
+        image: "{{ .Values.web.php.image.repository }}:{{ .Values.web.php.image.tag }}"
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: nerdwrks-env-configmap
+          mountPath: /var/www/html/.env
+          subPath: nerdwrks.env
+        - name: laravel-logs
+          mountPath: /var/www/html/storage/logs/
+        - name: redis-tls-certs
+          mountPath: /home/www-data/tls
+          readOnly: true
+        env:
+        - name: APP_CONFIG_FILE
+          value: /var/www/html/.env
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+        securityContext:
+          runAsUser: 82
+          runAsGroup: 82
+          readOnlyRootFilesystem: false
+        ports:
+        - name: php-fpm
+          containerPort: 9000
+          protocol: TCP
+      - name: filebeat
+        image: docker.elastic.co/beats/filebeat:8.13.2
+        args: ["-c", "/etc/filebeat/filebeat.yml", "-e"]
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: laravel-logs
+          mountPath: /var/www/html/storage/logs
+        - name: filebeat-config
+          mountPath: /etc/filebeat
+          readOnly: true
+      volumes:
+      - name: nginx
+        emptyDir: {}
+      - name: laravel-logs
+        emptyDir: {}
+      - name: nerdwrks-env-configmap
+        configMap:
+          name: nerdwrks-env-configmap
+          items:
+          - key: nerdwrks.env
+            path: nerdwrks.env
+      - name: redis-tls-certs
+        secret:
+          secretName: redis-tls-certs
+          defaultMode: 0444
+      imagePullSecrets:
+      - name: "{{ .Values.imagePullSecret }}"

@@ -1,0 +1,1 @@
+php artisan config:sync --environment=$VAULT_ENV
