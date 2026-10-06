@@ -1,13 +1,13 @@
-FROM php:8.4.10-fpm-alpine3.22
+FROM php:8.5.1-fpm-alpine3.23
 
 # copy the setup scripts
 WORKDIR /tmp
 COPY --chmod=755 .docker/php/scripts .tmp
-RUN mv /tmp/.tmp/startups/ /home/www-data/
-COPY .docker/php/ldapca/ca.pem /etc/openldap/certs/ca.pem
+RUN rm -rf /home/www-data/startups && mv /tmp/.tmp/startups/ /home/www-data/
 
 # setup the os and php environments and clean up the setup scripts
 RUN /tmp/.tmp/php-apk.sh \
+  && /tmp/.tmp/php-pie.sh \
   && /tmp/.tmp/php-ext.sh \
   && /tmp/.tmp/php-conf.sh \
   && /tmp/.tmp/php-fpm-conf.sh \

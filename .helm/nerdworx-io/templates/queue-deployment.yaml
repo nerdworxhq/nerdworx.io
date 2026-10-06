@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .Values.deploymentNameQueue }}"
+  namespace: "{{ .Values.namespace }}"
+  labels:
+    app: nerdworx-io
+    component: "queue"
+    chart: nerdworx-io
+spec:
+  replicas: {{ .Values.queue.replicas }}
+  selector:
+    matchLabels:
+      app: nerdworx-io
+      component: "queue"
+      chart: nerdworx-io
+  template:
+    metadata:
+      labels:
+        app: nerdworx-io
+        component: "queue"
+        chart: nerdworx-io
+    spec:
+      serviceAccountName: nerdworx-io
+      # Let an in-flight job (e.g. sending the onboarding email) finish on rollout.
+      terminationGracePeriodSeconds: 60
+      containers:
+      - name: nerdworx-io-queue
+        image: "{{ .Values.web.php.image.repository }}:{{ .Values.web.php.image.tag }}"
+        imagePullPolicy: {{ .Values.web.php.image.pullPolicy }}
+        command: ["php", "artisan", "queue:work", "--tries=3", "--backoff=60", "--max-time=3600"]
+        volumeMounts:
+        - name: nerdworx-io-env-configmap
+          mountPath: /var/www/html/.env
+          subPath: nerdworx-io.env
+        env:
+        - name: APP_CONFIG_FILE
+          value: /var/www/html/.env
+        resources:
+          requests:
+            cpu: 50m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+        securityContext:
+          runAsUser: 82
+          runAsGroup: 82
+          readOnlyRootFilesystem: false
+      volumes:
+      - name: nerdworx-io-env-configmap
+        configMap:
+          name: nerdworx-io-env-configmap
+          items:
+          - key: nerdworx-io.env
+            path: nerdworx-io.env
+      imagePullSecrets:
+      - name: "{{ .Values.imagePullSecret }}"

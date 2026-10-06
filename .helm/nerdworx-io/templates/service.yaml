@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nerdworx-io
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: nerdworx-io
+  annotations: {}
+spec:
+  type: {{ .Values.web.service.type }}
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
+  selector:
+    app: nerdworx-io
+    component: "web"

@@ -1,0 +1,21 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: nerdworx-io-gateway
+  namespace: nerdworx-io
+spec:
+  gatewayClassName: cilium
+  listeners:
+    - name: https-api
+      protocol: HTTPS
+      port: 443
+      hostname: "api.nerdworx.io"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: nerdworx-io-cert
+            kind: Secret
+            group: ""
+      allowedRoutes:
+        namespaces:
+          from: Same

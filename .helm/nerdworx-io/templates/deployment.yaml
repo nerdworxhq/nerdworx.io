@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .Values.deploymentNameWeb }}"
+  namespace: "{{ .Values.namespace }}"
+  labels:
+    app: nerdworx-io
+    component: "web"
+    chart: nerdworx-io
+spec:
+  replicas: {{ .Values.spec.replicas }}
+  selector:
+    matchLabels:
+      app: nerdworx-io
+      component: "web"
+      chart: nerdworx-io
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: "25%"
+      maxUnavailable: "25%"
+  minReadySeconds: 30
+  progressDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app: nerdworx-io
+        component: "web"
+        chart: nerdworx-io
+    spec:
+      serviceAccountName: nerdworx-io
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - nerdworx-io
+              topologyKey: "kubernetes.io/hostname"
+      terminationGracePeriodSeconds: 10
+      # Run pending migrations before a pod serves traffic. Rolling updates
+      # replace one pod at a time, so only one migrate runs at once; if pods
+      # race on a fresh install, the loser exits non-zero and is retried.
+      initContainers:
+      - name: migrate
+        image: "{{ .Values.web.php.image.repository }}:{{ .Values.web.php.image.tag }}"
+        imagePullPolicy: {{ .Values.web.php.image.pullPolicy }}
+        command: ["php", "artisan", "migrate", "--force"]
+        volumeMounts:
+        - name: nerdworx-io-env-configmap
+          mountPath: /var/www/html/.env
+          subPath: nerdworx-io.env
+        securityContext:
+          runAsUser: 82
+          runAsGroup: 82
+          readOnlyRootFilesystem: false
+      containers:
+      - name: "{{ .Values.web.containerWebNginx }}"
+        image: "{{ .Values.web.nginx.image.repository }}:{{ .Values.web.nginx.image.tag }}"
+        imagePullPolicy: {{ .Values.web.nginx.image.pullPolicy }}
+        volumeMounts:
+        - name: nerdworx-io-env-configmap
+          mountPath: /var/www/html/.env
+          subPath: nerdworx-io.env
+        - name: nginx
+          mountPath: /nginx
+        env:
+        - name: APP_CONFIG_FILE
+          value: /var/www/html/.env
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          readOnlyRootFilesystem: false
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+      - name: "{{ .Values.web.containerWebPHP }}"
+        image: "{{ .Values.web.php.image.repository }}:{{ .Values.web.php.image.tag }}"
+        imagePullPolicy: {{ .Values.web.php.image.pullPolicy }}
+        volumeMounts:
+        - name: nerdworx-io-env-configmap
+          mountPath: /var/www/html/.env
+          subPath: nerdworx-io.env
+        - name: laravel-logs
+          mountPath: /var/www/html/storage/logs/
+        env:
+        - name: APP_CONFIG_FILE
+          value: /var/www/html/.env
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+        securityContext:
+          runAsUser: 82
+          runAsGroup: 82
+          readOnlyRootFilesystem: false
+        ports:
+        - name: php-fpm
+          containerPort: 9000
+          protocol: TCP
+      volumes:
+      - name: nginx
+        emptyDir: {}
+      - name: laravel-logs
+        emptyDir: {}
+      - name: nerdworx-io-env-configmap
+        configMap:
+          name: nerdworx-io-env-configmap
+          items:
+          - key: nerdworx-io.env
+            path: nerdworx-io.env
+      imagePullSecrets:
+      - name: "{{ .Values.imagePullSecret }}"

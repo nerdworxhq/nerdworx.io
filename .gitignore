@@ -26,3 +26,6 @@ yarn-error.log
 /.vscode
 /.zed
 node_modules/
+
+nerdworx-io.env
+ghcr-image-pull.yaml

@@ -1,0 +1,13 @@
+# Creates the nerdworx_io database on the shared CNPG cluster. The owner role
+# must exist first: add it to nerdworx-postgres-1's spec.managed.roles in the
+# nerdworx-talos-gitops repo (see DEPLOY.md).
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: nerdworx-io
+  namespace: cnpg-system
+spec:
+  cluster:
+    name: nerdworx-postgres-1
+  name: nerdworx_io
+  owner: nerdworx_io

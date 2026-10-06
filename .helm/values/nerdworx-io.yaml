@@ -1,0 +1,28 @@
+namespace: nerdworx-io
+environment: prod
+deploymentNameWeb: nerdworx-io
+deploymentNameQueue: nerdworx-io-queue
+spec:
+  replicas: 3
+queue:
+  replicas: 1
+web:
+  service:
+    type: ClusterIP
+    port: 80
+
+  containerWebNginx: nerdworx-io-nginx
+  nginx:
+    image:
+      repository: ghcr.io/nerdworxhq/nerdworx.io/nerdworx-io-nginx
+      tag: latest
+      pullPolicy: Always
+
+  containerWebPHP: nerdworx-io-php
+  php:
+    image:
+      repository: ghcr.io/nerdworxhq/nerdworx.io/nerdworx-io-php
+      tag: latest
+      pullPolicy: Always
+
+imagePullSecret: ghcr-image-pull
