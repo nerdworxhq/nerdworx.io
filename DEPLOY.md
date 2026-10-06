@@ -1,4 +1,4 @@
-# Deploying api.nerdworx.io
+# Deploying nerdworx.io
 
 Same model as nerdworx.com: CI builds images to GHCR, and the cluster runs them
 from a Helm release plus a Gateway and HTTPRoute applied with `kubectl`.
@@ -51,7 +51,7 @@ from a Helm release plus a Gateway and HTTPRoute applied with `kubectl`.
 3. **Namespace secrets.**
 
    ```sh
-   kubectl -n nerdworx-io create secret tls nerdworx-io-cert --cert=api.nerdworx.io.crt --key=api.nerdworx.io.key
+   kubectl -n nerdworx-io create secret tls nerdworx-io-cert --cert=nerdworx.io.crt --key=nerdworx.io.key
    kubectl -n nerdworx-com get secret ghcr-image-pull -o yaml \
      | sed 's/namespace: nerdworx-com/namespace: nerdworx-io/' \
      | grep -v -E '^\s+(uid|resourceVersion|creationTimestamp):' \
@@ -73,7 +73,7 @@ from a Helm release plus a Gateway and HTTPRoute applied with `kubectl`.
    kubectl apply -f nerdworx-io-gateway.yaml -f nerdworx-io-httproute.yaml
    ```
 
-6. **DNS.** Point `api.nerdworx.io` at the Gateway's address:
+6. **DNS.** Point `nerdworx.io` at the Gateway's address:
    `kubectl -n nerdworx-io get gateway nerdworx-io-gateway`.
 
 ## Releasing

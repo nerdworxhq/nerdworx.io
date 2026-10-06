@@ -6,10 +6,10 @@ metadata:
 spec:
   gatewayClassName: cilium
   listeners:
-    - name: https-api
+    - name: https
       protocol: HTTPS
       port: 443
-      hostname: "api.nerdworx.io"
+      hostname: "nerdworx.io"
       tls:
         mode: Terminate
         certificateRefs:
