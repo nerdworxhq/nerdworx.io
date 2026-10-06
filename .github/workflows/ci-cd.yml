@@ -102,11 +102,11 @@ jobs:
 
       - name: Docker Build and Push
         run: |
+          TAG="${{ needs.tag-nerdworx-io.outputs.tag_created }}"
+
           # Build front-end assets into public/build for the nginx image
           npm install
-          npm run build
-
-          TAG="${{ needs.tag-nerdworx-io.outputs.tag_created }}"
+          VITE_APP_VERSION="$TAG" npm run build
           # Only main moves :latest, which the cluster pulls on rollout
           if [ "$GITHUB_REF_NAME" = "main" ]; then CHANNEL=latest; else CHANNEL="$GITHUB_REF_NAME"; fi
 
