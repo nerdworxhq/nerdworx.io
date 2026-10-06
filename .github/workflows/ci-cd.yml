@@ -12,17 +12,19 @@ on:
       - develop
   workflow_dispatch:
     inputs:
-      build_base:
-        description: 'Build and push the PHP base image (nerdworx-io-php-base-85:v1.0.0)'
+      rebuild_base:
+        description: 'Rebuild the PHP base image even if it already exists in GHCR'
         type: boolean
         default: false
 
 env:
   IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/nerdworx.io
+  PHP_BASE_IMAGE: ghcr.io/${{ github.repository_owner }}/nerdworx.io/nerdworx-io-php-base-85:v1.0.0
 
 jobs:
+  # Builds the PHP base image the app image is FROM, but only when it isn't
+  # in GHCR yet (or a manual run asks for a rebuild).
   build-base-image:
-    if: github.event_name == 'workflow_dispatch' && inputs.build_base
     runs-on: ubuntu-latest
     environment: nerdworx.io
     steps:
@@ -35,10 +37,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GH_PAT_TOKEN }}
 
-      - name: Build and Push PHP Base Image
+      - name: Check for existing base image
+        id: check
         run: |
-          docker build . -f .docker/php/k8sbase.dockerfile -t "$IMAGE_BASE/nerdworx-io-php-base-85:v1.0.0"
-          docker push "$IMAGE_BASE/nerdworx-io-php-base-85:v1.0.0"
+          if [ "${{ inputs.rebuild_base }}" != "true" ] && docker manifest inspect "$PHP_BASE_IMAGE" > /dev/null 2>&1; then
+            echo "build=false" >> $GITHUB_OUTPUT
+          else
+            echo "build=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and Push PHP Base Image
+        if: steps.check.outputs.build == 'true'
+        run: |
+          docker build . -f .docker/php/k8sbase.dockerfile -t "$PHP_BASE_IMAGE"
+          docker push "$PHP_BASE_IMAGE"
 
   tag-nerdworx-io:
     if: github.event_name == 'push'
@@ -63,7 +75,7 @@ jobs:
           echo "tag=$GITHUB_TAG_NERDWORX_IO" >> $GITHUB_OUTPUT
 
   build-and-push:
-    needs: [tag-nerdworx-io]
+    needs: [build-base-image, tag-nerdworx-io]
     if: needs.tag-nerdworx-io.outputs.tag_created != ''
     runs-on: ubuntu-latest
     environment: nerdworx.io

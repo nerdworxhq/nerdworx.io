@@ -16,10 +16,13 @@ from a Helm release plus a Gateway and HTTPRoute applied with `kubectl`.
 ## First-time setup
 
 1. **GitHub.** Create the `nerdworx.io` environment in the repo settings with a
-   `GH_PAT_TOKEN` secret that can push tags and write packages. Then run the
-   workflow manually with **build_base** checked to publish
-   `nerdworx-io-php-base-85:v1.0.0` (the nerdworx.com base plus `pdo_pgsql`).
-   Merge to `main` to build the app images.
+   `GH_PAT_TOKEN` secret that can push tags and write packages. Then merge to
+   `main`. The first run builds and pushes the PHP base image
+   `ghcr.io/nerdworxhq/nerdworx.io/nerdworx-io-php-base-85:v1.0.0` (the
+   nerdworx.com base plus `pdo_pgsql`) because it isn't in GHCR yet, then
+   builds the app images from it. Later runs reuse it; to rebuild it after
+   changing `.docker/php/k8sbase.dockerfile` or its scripts, run the workflow
+   manually with **rebuild_base** checked.
 
 2. **Database role.** In `nerdworx-talos-gitops`, add the role to the
    `nerdworx-postgres-1` Cluster spec and create its password secret in
