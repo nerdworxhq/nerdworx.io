@@ -11,15 +11,15 @@ web:
   containerWebNginx: nerdwrks-nginx
   nginx: 
     image:
-      repository: registry.nerdwrks.net/nerdwrks/nerdwrks-nginx
-      tag: v1.0.0
+      repository: ghcr.io/nerdworxhq/nerdworx.io/nerdwrks-nginx
+      tag: latest
       pullPolicy: Always
   
   containerWebPHP: nerdwrks-php
   php: 
     image:
-      repository: registry.nerdwrks.net/nerdwrks/nerdwrks-php
-      tag: v1.0.0
+      repository: ghcr.io/nerdworxhq/nerdworx.io/nerdwrks-php
+      tag: latest
       pullPolicy: Always
 
 imagePullSecret: registry-image-pull

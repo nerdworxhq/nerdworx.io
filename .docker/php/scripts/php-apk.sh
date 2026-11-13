@@ -11,9 +11,12 @@ apk add mysql-client \
         openldap-dev \
         git \
         procps \
+        libstdc++ \
+        libgcc \
         libmcrypt-dev \
         libmcrypt \
         libltdl \
+        libtool \
         libpng-dev \
         fuse \
         go \

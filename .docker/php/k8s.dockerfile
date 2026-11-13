@@ -1,4 +1,4 @@
-FROM registry.nerdwrks.net/nerdwrks/nerdwrks-php:v1.0.0
+FROM ghcr.io/nerdworxhq/nerdworx.io/nerdworxio-php-base-85:v1.0.0
 
 # set the operating user for php 
 USER www-data:www-data
@@ -13,7 +13,6 @@ WORKDIR /var/www/html
 COPY --chown=www-data:www-data composer.json composer.json
 COPY --chown=www-data:www-data vite.config.ts vite.config.ts
 COPY --chown=www-data:www-data package.json package.json
-COPY --chown=www-data:www-data server.php server.php
 COPY --chown=www-data:www-data phpunit.xml phpunit.xml
 COPY --chown=www-data:www-data artisan artisan
 COPY --chown=www-data:www-data bootstrap/app.php bootstrap/app.php
@@ -34,6 +33,7 @@ RUN touch /var/www/html/storage/logs/laravel.log && \
 
 # install php dependencies, and install npm dependencies
 RUN composer install --no-dev --no-scripts --no-plugins --ignore-platform-reqs && \
+    mkdir -p bootstrap/cache && \
     php artisan key:generate --force
     # npm install && \
     # npm run prod

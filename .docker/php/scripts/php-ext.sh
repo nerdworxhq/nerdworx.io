@@ -1,17 +1,20 @@
-#since mcrypt is distributed with pecl now and not in the php install since 7.2, 
-#need to go ahead and grab it from there - then enable it 
-pecl install mcrypt-1.0.3 
-docker-php-ext-enable mcrypt
+set -e
 
-#install php-redis to avoid predis which is going away
-pecl install redis
-docker-php-ext-enable redis
+# cap parallel compile jobs so low-memory builders don't OOM-kill cc1
+PIE_MAKE_JOBS="${PIE_MAKE_JOBS:-2}"
 
-#install opcache
-docker-php-ext-install opcache
+echo "Installing mcrypt extension..."
+pie install -j"${PIE_MAKE_JOBS}" pecl/mcrypt
 
-#install the php extensions needed by the app
+# Install php-redis via PIE
+echo "Installing redis extension..."
+pie install -j"${PIE_MAKE_JOBS}" phpredis/phpredis
+
+# Install the php extensions needed by the app
+echo "Installing core PHP extensions..."
 docker-php-ext-install zip \
                        pdo_mysql \
                        ldap \
                        gd
+
+echo "All PHP extensions installed successfully!"
