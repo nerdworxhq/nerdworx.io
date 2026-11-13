@@ -1,4 +1,4 @@
-FROM ghcr.io/nerdworxhq/nerdworx.io/nerdwrks-php-base-85:v1.0.0
+FROM ghcr.io/nerdworxhq/nerdworx.io/nerdworxio-php-base-85:v1.0.0
 
 # set the operating user for php 
 USER www-data:www-data
